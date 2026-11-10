@@ -1,0 +1,13 @@
+# Rust build artifacts
+/target/
+
+# Local scratch & test logs
+/.scratch/
+
+# OS & IDE files
+.DS_Store
+Thumbs.db
+*.pdb
+*.swp
+.vscode/
+.idea/

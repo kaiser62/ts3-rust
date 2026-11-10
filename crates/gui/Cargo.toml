@@ -1,0 +1,26 @@
+[package]
+name = "ts3-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ts3-gui"
+path = "src/main.rs"
+
+[dependencies]
+ts3-proto = { path = "../proto" }
+ts3-client = { path = "../client" }
+tokio = { workspace = true }
+eframe = { workspace = true }
+egui = { workspace = true }
+egui_extras = { workspace = true }
+image = { workspace = true }
+resvg = { workspace = true }
+zip = { workspace = true }
+rodio = { workspace = true }
+cpal = { workspace = true }
+open = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

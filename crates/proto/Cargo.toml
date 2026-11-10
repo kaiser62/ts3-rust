@@ -1,0 +1,23 @@
+[package]
+name = "ts3-proto"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aes.workspace = true
+eax.workspace = true
+cipher.workspace = true
+p256.workspace = true
+curve25519-dalek.workspace = true
+ed25519-dalek.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+num-bigint.workspace = true
+num-traits.workspace = true
+base64.workspace = true
+bytes.workspace = true
+bitflags.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+rand.workspace = true
+hex.workspace = true

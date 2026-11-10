@@ -1,0 +1,163 @@
+name: Build All Platforms
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Workspace Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux audio & GUI system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libasound2-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libssl-dev \
+            libgtk-3-dev
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run workspace unit & integration tests
+        run: cargo test --workspace
+
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive_ext: zip
+            bin_ext: .exe
+
+          - name: linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive_ext: tar.gz
+            bin_ext: ""
+
+          - name: linux-aarch64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive_ext: tar.gz
+            bin_ext: ""
+
+          - name: macos-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            archive_ext: tar.gz
+            bin_ext: ""
+
+          - name: macos-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            archive_ext: tar.gz
+            bin_ext: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libasound2-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libssl-dev \
+            libgtk-3-dev
+
+      - name: Install Rust toolchain (${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binaries (ts3-gui & ts3-cli)
+        run: cargo build --release --workspace --bins --target ${{ matrix.target }}
+
+      - name: Package release archive (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist/ts3-rust-${{ matrix.name }}
+          cp target/${{ matrix.target }}/release/ts3-gui dist/ts3-rust-${{ matrix.name }}/
+          cp target/${{ matrix.target }}/release/ts3-cli dist/ts3-rust-${{ matrix.name }}/
+          cp README.md dist/ts3-rust-${{ matrix.name }}/
+          tar -C dist -czf ts3-rust-${{ matrix.name }}.tar.gz ts3-rust-${{ matrix.name }}
+
+      - name: Package release archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "dist/ts3-rust-${{ matrix.name }}" | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/ts3-gui.exe" "dist/ts3-rust-${{ matrix.name }}/"
+          Copy-Item "target/${{ matrix.target }}/release/ts3-cli.exe" "dist/ts3-rust-${{ matrix.name }}/"
+          Copy-Item "README.md" "dist/ts3-rust-${{ matrix.name }}/"
+          Compress-Archive -Path "dist/ts3-rust-${{ matrix.name }}" -DestinationPath "ts3-rust-${{ matrix.name }}.zip" -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ts3-rust-${{ matrix.name }}
+          path: ts3-rust-${{ matrix.name }}.${{ matrix.archive_ext }}
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [ test, build ]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true

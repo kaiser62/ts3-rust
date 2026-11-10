@@ -1,0 +1,17 @@
+[package]
+name = "ts3-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ts3-cli"
+path = "src/main.rs"
+
+[dependencies]
+ts3-proto = { path = "../proto" }
+ts3-client = { path = "../client" }
+tokio.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
